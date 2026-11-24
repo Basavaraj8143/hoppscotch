@@ -278,7 +278,6 @@ export const getResolvedVariables = (
   environmentVariables: EnvironmentVariable[],
   collectionVariables: HoppCollectionVariable[] = []
 ): EnvironmentVariable[] => {
-  // Transforming request variables to the shape of environment variables
   const activeRequestVariables = requestVariables
     .filter(({ active, value }) => active && value)
     .map(({ key, value }) => ({
@@ -288,26 +287,7 @@ export const getResolvedVariables = (
       secret: false,
     }));
 
-  const requestVariableKeys = activeRequestVariables.map(({ key }) => key);
-
-  // Request variables have higher priority, hence filtering out collection variables with the same keys
-  const filteredCollectionVariables = collectionVariables.filter(
-    ({ key }) => !requestVariableKeys.includes(key)
-  );
-
-  const collectionVariableKeys = filteredCollectionVariables.map(
-    ({ key }) => key
-  );
-
-  // Filtering out environment variables that have keys present in request or collection variables
-  const filteredEnvironmentVariables = environmentVariables.filter(
-    ({ key }) =>
-      ![...requestVariableKeys, ...collectionVariableKeys].includes(key)
-  );
-
-  // Setting currentValue to initialValue for environment variables
-  // because the exported file might not have the currentValue field
-  const processedEnvironmentVariables = filteredEnvironmentVariables.map(
+  const processedCollectionVariables = collectionVariables.map(
     ({ key, initialValue, currentValue, secret }) => ({
       key,
       initialValue,
@@ -317,7 +297,7 @@ export const getResolvedVariables = (
     })
   );
 
-  const processedCollectionVariables = filteredCollectionVariables.map(
+  const processedEnvironmentVariables = environmentVariables.map(
     ({ key, initialValue, currentValue, secret }) => ({
       key,
       initialValue,
@@ -327,9 +307,26 @@ export const getResolvedVariables = (
     })
   );
 
-  return [
+  const precedenceOrderedVariables = [
     ...activeRequestVariables,
     ...processedCollectionVariables,
     ...processedEnvironmentVariables,
   ];
+
+  const resolvedVariables = new Map<string, EnvironmentVariable>();
+
+  for (const variable of precedenceOrderedVariables) {
+    const existing = resolvedVariables.get(variable.key);
+    const hasValue =
+      Boolean(variable.currentValue) || Boolean(variable.initialValue);
+
+    if (
+      !existing ||
+      (!existing.currentValue && !existing.initialValue && hasValue)
+    ) {
+      resolvedVariables.set(variable.key, variable);
+    }
+  }
+
+  return Array.from(resolvedVariables.values());
 };

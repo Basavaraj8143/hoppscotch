@@ -503,5 +503,35 @@ describe("getters", () => {
         getResolvedVariables(requestVariables, environmentVariables)
       ).toEqual(expected);
     });
+
+    test("Falls through an empty collection variable to the environment", () => {
+      const collectionVariables = [
+        {
+          key: "COLLECTION_KEY",
+          initialValue: "",
+          currentValue: "",
+          secret: false,
+        },
+      ];
+      const environmentVariables = [
+        {
+          key: "COLLECTION_KEY",
+          initialValue: "from-environment",
+          currentValue: "from-environment",
+          secret: false,
+        },
+      ];
+
+      expect(
+        getResolvedVariables([], environmentVariables, collectionVariables)
+      ).toEqual([
+        {
+          key: "COLLECTION_KEY",
+          initialValue: "from-environment",
+          currentValue: "from-environment",
+          secret: false,
+        },
+      ]);
+    });
   });
 });
